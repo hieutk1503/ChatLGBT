@@ -37,9 +37,13 @@ public class SecurityConfig {
                 // Phân quyền đường dẫn (Routing)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
+                                "/",                // QUAN TRỌNG: Mở cửa cho đường dẫn gốc
+                                "/index.html",      // Cho phép file index
+                                "/static/**",       // Cho phép các file tĩnh bổ sung (nếu có)
+                                "/*.js",            // Cho phép các file javascript
+                                "/*.css",           // Cho phép các file css
                                 "/api/auth/**",
                                 "/error",
-                                "/index.html", // Cho phép truy cập file giao diện
                                 "/ws/**",
                                 "/api/messages/**",
                                 "/uploads/**").permitAll()
