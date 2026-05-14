@@ -39,7 +39,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/api/auth/**",
                                 "/error",
-                                "/chat.html", // Cho phép truy cập file giao diện
+                                "/index.html", // Cho phép truy cập file giao diện
                                 "/ws/**",
                                 "/api/messages/**",
                                 "/uploads/**").permitAll()
