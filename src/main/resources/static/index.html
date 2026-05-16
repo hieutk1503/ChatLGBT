@@ -395,9 +395,9 @@
     setTimeout(function() { t.remove(); }, 3000);
   }
 
-  // ===== HÀM XỬ LÝ GOOGLE LOGIN =====
+  // ===== HÀM XỬ LÝ GOOGLE LOGIN ĐÃ SỬA LỖI BASE64 =====
   function handleGoogleLogin(response) {
-    // response.credential chính là mã Google Token
+    // 1. Gửi Token lên Backend
     fetch('/api/auth/google', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -410,14 +410,22 @@
             .then(token => {
               myToken = token;
 
-              // Đoán email tạm để hiển thị
-              var decodedGoogleToken = JSON.parse(atob(response.credential.split('.')[1]));
+              // 2. Chuyển đổi Base64Url sang Base64 chuẩn để giải mã không bị lỗi atob
+              var base64Url = response.credential.split('.')[1];
+              var base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+              while (base64.length % 4 !== 0) {
+                base64 += '=';
+              }
+
+              // 3. Giải mã lấy email tạm
+              var decodedGoogleToken = JSON.parse(atob(base64));
               myEmail = decodedGoogleToken.email;
 
+              // 4. Đổi giao diện
               document.getElementById('authView').style.display = 'none';
               document.getElementById('appView').style.display = 'flex';
 
-              // Gọi API lấy thông tin và Avatar
+              // 5. Gọi API lấy thông tin và Avatar như bình thường
               fetch('/api/users/me', {
                 headers: { 'Authorization': 'Bearer ' + myToken }
               }).then(r => r.json()).then(user => {
@@ -452,7 +460,7 @@
             })
             .catch(err => showToast(err.message, 'error'));
   }
-  // ===================================
+  // =================================================
 
   // ===== AUTH & PROFILE LOGIC =====
   function toggleAuth(type) {
