@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ChatLGBT</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -44,6 +46,12 @@
     .btn-auth:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(108,99,255,.5)}
     .auth-switch{text-align:center;margin-top:20px;font-size:14px;color:#6B7280}
     .auth-switch a{color:#6C63FF;font-weight:600;cursor:pointer;text-decoration:none}
+
+    /* CSS CHO ĐƯỜNG KẺ GOOGLE LOGIN */
+    .auth-divider { text-align: center; margin: 20px 0; color: #6B7280; font-size: 14px; position: relative; }
+    .auth-divider::before, .auth-divider::after { content: ''; position: absolute; top: 50%; width: 40%; height: 1px; background: #E8ECF4; }
+    .auth-divider::before { left: 0; }
+    .auth-divider::after { right: 0; }
 
     /* ===== APP LAYOUT ===== */
     #appView{display:none;width:100vw;height:100vh;flex-direction:row}
@@ -166,6 +174,22 @@
       <input type="password" id="loginPassword" value="123" placeholder="••••••••">
     </div>
     <button class="btn-auth" onclick="doLogin()">Đăng nhập</button>
+
+    <div class="auth-divider">hoặc đăng nhập bằng</div>
+    <div id="g_id_onload"
+         data-client_id="560953078248-qrsgt0dllo272cb3ianhjr3aojbvvtvg.apps.googleusercontent.com"
+         data-callback="handleGoogleLogin"
+         data-auto_prompt="false">
+    </div>
+    <div class="g_id_signin"
+         data-type="standard"
+         data-size="large"
+         data-theme="outline"
+         data-text="sign_in_with"
+         data-shape="rectangular"
+         data-logo_alignment="center"
+         style="display: flex; justify-content: center; margin-bottom: 10px;">
+    </div>
     <div class="auth-switch">Chưa có tài khoản? <a onclick="toggleAuth('register')">Đăng ký ngay</a></div>
   </div>
 
@@ -173,7 +197,7 @@
     <div class="auth-logo">
       <div class="logo-icon">✨</div>
       <h1>Tạo tài khoản</h1>
-      <p>Tham gia ChatLGBT ngay hôm nay</p>
+      <p>Tham gia ZChat ngay hôm nay</p>
     </div>
     <div class="form-group">
       <label>Họ và tên</label>
@@ -371,7 +395,66 @@
     setTimeout(function() { t.remove(); }, 3000);
   }
 
-  // ===== AUTH & PROFILE LÔGIC =====
+  // ===== HÀM XỬ LÝ GOOGLE LOGIN =====
+  function handleGoogleLogin(response) {
+    // response.credential chính là mã Google Token
+    fetch('/api/auth/google', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: response.credential })
+    })
+            .then(async res => {
+              if (!res.ok) throw new Error(await res.text());
+              return res.text(); // Lấy JWT của ZChat
+            })
+            .then(token => {
+              myToken = token;
+
+              // Đoán email tạm để hiển thị
+              var decodedGoogleToken = JSON.parse(atob(response.credential.split('.')[1]));
+              myEmail = decodedGoogleToken.email;
+
+              document.getElementById('authView').style.display = 'none';
+              document.getElementById('appView').style.display = 'flex';
+
+              // Gọi API lấy thông tin và Avatar
+              fetch('/api/users/me', {
+                headers: { 'Authorization': 'Bearer ' + myToken }
+              }).then(r => r.json()).then(user => {
+                var displayName = user.fullName || user.email;
+                document.getElementById('myProfileName').innerText = displayName;
+
+                document.getElementById('profileName').value = user.fullName || '';
+                document.getElementById('profileEmail').value = user.email || '';
+                document.getElementById('profileId').value = user.id || '';
+
+                var initial = getInitial(displayName);
+                var colorClass = getAvatarColor(displayName);
+
+                if (user.avatarUrl) {
+                  document.getElementById('myAvatarImg').src = user.avatarUrl;
+                  document.getElementById('myAvatarImg').style.display = 'block';
+                  document.getElementById('myAvatarChar').style.display = 'none';
+
+                  document.getElementById('modalAvatarImg').src = user.avatarUrl;
+                  document.getElementById('modalAvatarImg').style.display = 'block';
+                  document.getElementById('modalAvatarChar').style.display = 'none';
+                } else {
+                  document.getElementById('myAvatarChar').innerText = initial;
+                  document.getElementById('myAvatarChar').className = 'profile-avatar ' + colorClass;
+                  document.getElementById('modalAvatarChar').innerText = initial;
+                  document.getElementById('modalAvatarChar').className = 'profile-avatar ' + colorClass;
+                }
+              }).catch(err => console.log("Lỗi lấy thông tin:", err));
+
+              initWebSocket();
+              showToast('Đăng nhập bằng Google thành công!', 'success');
+            })
+            .catch(err => showToast(err.message, 'error'));
+  }
+  // ===================================
+
+  // ===== AUTH & PROFILE LOGIC =====
   function toggleAuth(type) {
     if (type === 'register') {
       document.getElementById('loginBox').style.display = 'none';
